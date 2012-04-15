@@ -4496,9 +4496,69 @@ function forum_count_replies($post, $children=true) {
  * @param mixed $value
  * @return bool
  */
-function forum_forcesubscribe($forumid, $value=1) {
+function forum_forcesubscribe($forum, $value=1) {
     global $DB;
-    return $DB->set_field("forum", "forcesubscribe", $value, array("id" => $forumid));
+	$fields ="u.id,
+                  u.username,
+                  u.firstname,
+                  u.lastname,
+                  u.maildisplay,
+                  u.mailformat,
+                  u.maildigest,
+                  u.imagealt,
+                  u.email,
+                  u.emailstop,
+                  u.city,
+                  u.country,
+                  u.lastaccess,
+                  u.lastlogin,
+                  u.picture,
+                  u.timezone,
+                  u.theme,
+                  u.lang,
+                  u.trackforums,
+                  u.mnethostid";
+	$course = $DB->get_record('course', array('id' => $forum->course));
+	$subscribed=forum_subscribed_users($course, $forum);
+	$cm = get_coursemodule_from_instance('forum', $forum->id, $course->id);
+	$context = get_context_instance(CONTEXT_MODULE, $cm->id);
+	$users = forum_get_potential_subscribers($context, 0, $fields, "u.email ASC");
+	switch($value)
+	{
+		//optional
+		case 0: 
+			if(sizeof($subscribed)==sizeof($users))
+			{
+				foreach($users as $u)
+				{
+					forum_unsubscribe($u->id, $forum->id);
+				}
+			}
+		break;
+		//auto
+		case 2:
+			//if users already subscribed no further subscriptions are made
+			if(sizeof($subscribed)==0)
+			{
+				
+				foreach($users as $u)
+				{
+					forum_subscribe($u->id, $forum->id);
+				}
+			}
+		break;
+		//disabled
+		case 3:
+			if(sizeof($subscribed)==sizeof($users))
+			{
+				foreach($users as $u)
+				{
+					forum_unsubscribe($u->id, $forum->id);
+				}
+			}
+		break;
+	}
+    return $DB->set_field("forum", "forcesubscribe", $value, array("id" => $forum->id));
 }
 
 /**
